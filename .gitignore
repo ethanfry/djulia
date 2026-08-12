@@ -1,0 +1,15 @@
+# Virtualenvs
+venv_djulia/
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# SQLite
+*.sqlite3
+*.db

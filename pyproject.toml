@@ -1,0 +1,16 @@
+[project]
+name = "djulia"
+version = "0.0.1"
+description = "Register a Django model, get JSON:API-compatible endpoints."
+requires-python = ">=3.10"
+dependencies = [
+    "django>=4.2",
+    "django-filter>=23",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["djulia"]
