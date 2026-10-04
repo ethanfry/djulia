@@ -5,6 +5,8 @@ DEFAULTS = {
     "MAX_PAGE_SIZE": 100,
     "AUTODISCOVER_MODULE": "djulia_resources",
     "BROWSABLE": True,
+    "IDENTITY": None,          # None -> the logged-in Django user, if any
+    "PERMISSION": "read_only",
     "OPENAPI_TITLE": "djulia API",
     "OPENAPI_VERSION": "1.0.0",
 }

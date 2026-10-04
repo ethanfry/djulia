@@ -31,7 +31,7 @@ Add djulia to an existing project's models — you don't scaffold a new app.
    from djulia import Resource, api
    from .models import Article, Author
 
-   api.register(Author)                 # zero config: full CRUD + filters + sort + ...
+   api.register(Author)                 # zero config: read API + filters + sort + ...
 
    @api.register(Article)               # or subclass to override just what you need
    class ArticleResource(Resource):
@@ -47,7 +47,8 @@ Add djulia to an existing project's models — you don't scaffold a new app.
 
 That's it. Each registered model now serves:
 
-- CRUD at `/api/<type>/` and `/api/<type>/<id>/`
+- CRUD at `/api/<type>/` and `/api/<type>/<id>/` (reads are public; writes are
+  off until you choose a permission policy, see [Permissions](docs/configuration.md#permissions))
 - Filtering: `?filter[title__icontains]=x` (auto, type-aware lookups)
 - Sorting: `?sort=-created,title`
 - Sparse fieldsets: `?fields[articles]=title`
@@ -66,9 +67,9 @@ API and Swagger UI.
 Zero-config registration is fully-featured; override only what you need on a
 `Resource` subclass. Per-resource seams: `type_name`, `fields`, `relationships`,
 `filterset_fields`, `filterset_class`, `ordering_fields`, `get_queryset`,
-`has_permission`. Project-wide behaviour lives in a `DJULIA` settings dict
-(`PAGE_SIZE`, `MAX_PAGE_SIZE`, `BROWSABLE`, `AUTODISCOVER_MODULE`,
-`OPENAPI_TITLE`, `OPENAPI_VERSION`).
+`permission`, `has_permission`. Project-wide behaviour lives in a `DJULIA`
+settings dict (`PAGE_SIZE`, `MAX_PAGE_SIZE`, `BROWSABLE`, `IDENTITY`,
+`PERMISSION`, `AUTODISCOVER_MODULE`, `OPENAPI_TITLE`, `OPENAPI_VERSION`).
 
 See **[docs/configuration.md](docs/configuration.md)** for a recipe per use case,
 and [`example/blog/djulia_resources.py`](example/blog/djulia_resources.py) for

@@ -1,6 +1,9 @@
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.text import slugify
 
+from .conf import get_setting
+from .permissions import get_identity, get_policy
+
 
 class RelationSpec:
     """Precomputed description of one relationship on a resource's model."""
@@ -27,6 +30,7 @@ class Resource:
     filterset_fields = None   # None -> auto (all fields); list/dict -> explicit
     filterset_class = None    # a full django-filter FilterSet, when the default won't do
     ordering_fields = None    # None -> all concrete fields are sortable
+    permission = None         # None -> the DJULIA["PERMISSION"] policy
 
     def __init__(self, registry, model=None):
         self.registry = registry
@@ -89,5 +93,9 @@ class Resource:
         return qs
 
     def has_permission(self, request, action):
-        """Return whether ``action`` (list/retrieve/create/update/delete) is allowed."""
-        return True
+        """Return whether ``action`` (list/retrieve/create/update/delete) is allowed.
+
+        Defaults to this resource's ``permission`` policy, else the project's.
+        """
+        policy = get_policy(self.permission or get_setting("PERMISSION"))
+        return policy(get_identity(request), self, action, request)

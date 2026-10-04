@@ -6,11 +6,12 @@ from django.http import HttpResponse
 from django.views import View
 
 from . import browsable
-from .errors import (BadRequest, Forbidden, JSONAPIError, MEDIA_TYPE,
-                     MethodNotAllowed, NotFound, ValidationFailed, error_response)
+from .errors import (BadRequest, Forbidden, JSONAPIError, MEDIA_TYPE, MethodNotAllowed,
+                     NotAuthenticated, NotFound, ValidationFailed, error_response)
 from .filters import apply_filters, apply_sort, parse_sparse_fields
 from .negotiation import check_request
 from .pagination import paginate
+from .permissions import get_identity
 from .serialization import resource_object
 
 
@@ -44,8 +45,11 @@ class BaseResourceView(View):
             MethodNotAllowed(f"Method '{request.method}' is not allowed here."))
 
     def check_permission(self, request, action):
-        if not self.resource.has_permission(request, action):
-            raise Forbidden("You do not have permission to perform this action.")
+        if self.resource.has_permission(request, action):
+            return
+        if get_identity(request) is None:
+            raise NotAuthenticated("Authentication is required to perform this action.")
+        raise Forbidden("You do not have permission to perform this action.")
 
     def read_document(self, request):
         try:

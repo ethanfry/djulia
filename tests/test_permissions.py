@@ -1,7 +1,10 @@
+from django.test import override_settings
+
 from tests.base import JSONAPITestCase
 from tests.testapp.models import Widget
 
 
+@override_settings(DJULIA={"PERMISSION": "allow_all", "IDENTITY": "tests.identity.from_header"})
 class PermissionTests(JSONAPITestCase):
     @classmethod
     def setUpTestData(cls):
@@ -17,9 +20,13 @@ class PermissionTests(JSONAPITestCase):
         self.assertEqual(self.api_get(f"/api/widgets/{self.hidden.pk}/").status_code, 404)
 
     def test_has_permission_denies_delete(self):
-        resp = self.api_delete(f"/api/widgets/{self.visible.pk}/")
+        resp = self.api_delete(f"/api/widgets/{self.visible.pk}/", HTTP_X_TEST_SCOPES="")
         self.assertEqual(resp.status_code, 403)
         self.assertTrue(Widget.objects.filter(pk=self.visible.pk).exists())
 
     def test_allowed_action_works(self):
         self.assertEqual(self.api_get("/api/widgets/").status_code, 200)
+
+    def test_anonymous_denial_is_401(self):
+        resp = self.api_delete(f"/api/widgets/{self.visible.pk}/")
+        self.assertEqual(resp.status_code, 401)

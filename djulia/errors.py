@@ -15,6 +15,7 @@ class JSONAPIError(Exception):
 
     status = 500
     title = "Internal Server Error"
+    headers = {}
 
     def __init__(self, detail=None, *, pointer=None, parameter=None, code=None,
                  title=None, status=None):
@@ -47,6 +48,11 @@ class JSONAPIError(Exception):
 
 class BadRequest(JSONAPIError):
     status, title = 400, "Bad Request"
+
+
+class NotAuthenticated(JSONAPIError):
+    status, title = 401, "Unauthorized"
+    headers = {"WWW-Authenticate": "Bearer"}
 
 
 class Forbidden(JSONAPIError):
@@ -87,4 +93,5 @@ def error_response(error):
         json.dumps(body, cls=DjangoJSONEncoder),
         status=status,
         content_type=MEDIA_TYPE,
+        headers=errors[0].headers,
     )

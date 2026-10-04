@@ -134,17 +134,98 @@ class ArticleResource(Resource):
 
 Applies to both list and detail — a hidden object returns `404`.
 
-### Allow or deny per action — `has_permission`
+## Permissions
 
-`action` is one of `"list"`, `"retrieve"`, `"create"`, `"update"`, `"delete"`.
-Return `False` to respond `403`:
+djulia doesn't authenticate anyone. It works in two steps, and you plug your
+existing auth into the first:
+
+1. **Identity** — who is calling. A function `get_identity(request)` returns
+   whatever your auth layer produced (a user, a dict of verified token claims, a
+   service name), or `None` for an anonymous caller.
+2. **Policy** — may they do this. A function
+   `check(identity, resource, action, request)` returns `True` or `False`.
+   `action` is one of `"list"`, `"retrieve"`, `"create"`, `"update"`, `"delete"`.
+
+A denied request gets `401` when there's no identity and `403` otherwise.
+
+### Built-in policies — `DJULIA["PERMISSION"]`
+
+The built-in policies only gate **writes**; reads are always public.
+
+| Policy | Writes are allowed when… |
+|---|---|
+| `"read_only"` (default) | never |
+| `"authenticated"` | there's any identity |
+| `"scopes"` | the identity's token claims grant `<type>:write`, e.g. `articles:write` (read from OAuth's space-separated `scope` claim, or `scp`) |
+| `"allow_all"` | always (for an API behind a gateway that already enforces access, or a demo) |
 
 ```python
+DJULIA = {"PERMISSION": "scopes"}
+```
+
+Set a different policy for one resource with `permission`:
+
+```python
+class TagResource(Resource):
+    permission = "authenticated"
+```
+
+### Plug in your auth — `DJULIA["IDENTITY"]`
+
+By default the identity is the logged-in Django user (`request.user`), if
+there is one. For tokens, verify them with the library you already use and
+return the claims:
+
+```python
+# myproject/auth.py
+import jwt  # PyJWT
+
+def identity_from_token(request):
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return None
+    try:
+        return jwt.decode(header.removeprefix("Bearer "), PUBLIC_KEY,
+                          algorithms=["RS256"], audience="my-api")
+    except jwt.InvalidTokenError:
+        return None
+```
+
+```python
+DJULIA = {
+    "IDENTITY": "myproject.auth.identity_from_token",
+    "PERMISSION": "scopes",
+}
+```
+
+**Behind a gateway** that has already checked the caller, the identity function
+can read what the gateway forwards (e.g. an `X-User` header). Only do this if
+the app is unreachable except through the gateway; otherwise anyone can send
+that header.
+
+### Your own policy
+
+Point `PERMISSION` (or a resource's `permission`) at a function. Unlike the
+built-in policies, it's called for reads too:
+
+```python
+# myproject/auth.py
+def staff_only(identity, resource, action, request):
+    return identity is not None and identity.get("role") == "staff"
+```
+
+```python
+DJULIA = {"PERMISSION": "myproject.auth.staff_only"}
+```
+
+For logic tied to one resource, override `has_permission` directly:
+
+```python
+from djulia.permissions import get_identity
+
 class ArticleResource(Resource):
     def has_permission(self, request, action):
-        if action in ("create", "update", "delete"):
-            return request.user.is_authenticated
-        return True
+        return action != "delete" and get_identity(request) is not None
 ```
 
 ## Project-wide settings — the `DJULIA` dict
@@ -155,6 +236,8 @@ DJULIA = {
     "PAGE_SIZE": 25,             # default page size
     "MAX_PAGE_SIZE": 100,        # cap on ?page[size]
     "BROWSABLE": True,           # HTML browsable API for browsers
+    "IDENTITY": None,            # dotted path to get_identity(request); None -> request.user
+    "PERMISSION": "read_only",   # a built-in policy name, or a dotted path to your own
     "AUTODISCOVER_MODULE": "djulia_resources",  # per-app module djulia imports
     "OPENAPI_TITLE": "djulia API",
     "OPENAPI_VERSION": "1.0.0",
