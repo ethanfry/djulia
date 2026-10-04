@@ -29,6 +29,15 @@ class AuthorResource(Resource):
 Put these in `<app>/djulia_resources.py`; djulia autodiscovers that module on
 startup.
 
+Register **every model in an app** at once:
+
+```python
+api.register_app("blog")     # all models in `blog`, with defaults
+```
+
+Models you've already registered (e.g. with a custom `Resource`) are left
+untouched, so you can bulk-register and still override the few that need it.
+
 ## Recipes
 
 ### Choose which attributes are exposed — `fields`
@@ -159,8 +168,6 @@ Any key you omit falls back to the default shown above.
 
 - No `exclude`/`hidden` shorthand — list `fields` explicitly.
 - No `register(Model, **overrides)` kwarg form — subclass or use the decorator.
-- No `register_app(...)` bulk registration.
 - No `?include=` compound documents or dedicated relationship endpoints.
 
-The bulk-registration and database-introspection roadmap lives in
-[docs/standalone.md](standalone.md).
+The database-introspection roadmap lives in [docs/standalone.md](standalone.md).

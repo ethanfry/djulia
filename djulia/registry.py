@@ -33,6 +33,18 @@ class APIRegistry:
         self._by_model[model] = instance
         self._by_type[instance.type_name] = instance
 
+    def register_app(self, app_label, resource_class=None):
+        """Register every model in an app with defaults.
+
+        Models already registered (e.g. an explicit ``Resource`` subclass) are
+        left untouched, so you can bulk-register and still customise a few.
+        """
+        from django.apps import apps as django_apps
+        for model in django_apps.get_app_config(app_label).get_models():
+            if model._meta.auto_created or model in self._by_model:
+                continue
+            self._add(model, resource_class or Resource)
+
     def for_model(self, model):
         return self._by_model.get(model)
 
