@@ -67,8 +67,8 @@ Zero-config registration is fully-featured; override only what you need on a
 `Resource` subclass. Per-resource seams: `type_name`, `fields`, `relationships`,
 `filterset_fields`, `filterset_class`, `ordering_fields`, `get_queryset`,
 `has_permission`. Project-wide behaviour lives in a `DJULIA` settings dict
-(`PAGE_SIZE`, `MAX_PAGE_SIZE`, `BROWSABLE`, `STRICT_CONTENT_TYPE`,
-`AUTODISCOVER_MODULE`, `OPENAPI_TITLE`, `OPENAPI_VERSION`).
+(`PAGE_SIZE`, `MAX_PAGE_SIZE`, `BROWSABLE`, `AUTODISCOVER_MODULE`,
+`OPENAPI_TITLE`, `OPENAPI_VERSION`).
 
 See **[docs/configuration.md](docs/configuration.md)** for a recipe per use case,
 and [`example/blog/djulia_resources.py`](example/blog/djulia_resources.py) for

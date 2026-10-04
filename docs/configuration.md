@@ -155,7 +155,6 @@ DJULIA = {
     "PAGE_SIZE": 25,             # default page size
     "MAX_PAGE_SIZE": 100,        # cap on ?page[size]
     "BROWSABLE": True,           # HTML browsable API for browsers
-    "STRICT_CONTENT_TYPE": True, # enforce vnd.api+json negotiation (415/406)
     "AUTODISCOVER_MODULE": "djulia_resources",  # per-app module djulia imports
     "OPENAPI_TITLE": "djulia API",
     "OPENAPI_VERSION": "1.0.0",

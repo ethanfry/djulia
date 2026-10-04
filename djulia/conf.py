@@ -4,7 +4,6 @@ DEFAULTS = {
     "PAGE_SIZE": 25,
     "MAX_PAGE_SIZE": 100,
     "AUTODISCOVER_MODULE": "djulia_resources",
-    "STRICT_CONTENT_TYPE": True,
     "BROWSABLE": True,
     "OPENAPI_TITLE": "djulia API",
     "OPENAPI_VERSION": "1.0.0",

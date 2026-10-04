@@ -1,31 +1,56 @@
-from .conf import get_setting
 from .errors import MEDIA_TYPE, NotAcceptable, UnsupportedMediaType
 
+# The only media type parameters JSON:API 1.1 allows. djulia supports no
+# extensions, so any `ext` is unsupported; profiles are accepted and ignored.
+ALLOWED_PARAMS = {"ext", "profile"}
 
-def _base(media_type):
-    return media_type.split(";")[0].strip()
+# Plain JSON bodies are accepted too: hand-written clients default to it, and it
+# needs a CORS preflight just like the JSON:API type, so it costs no CSRF safety.
+BODY_TYPES = {MEDIA_TYPE, "application/json"}
+
+
+def _parse(media_type):
+    """Split ``type/subtype; a=1; b="2"`` into ``("type/subtype", {"a": "1", "b": "2"})``."""
+    base, *params = media_type.split(";")
+    parsed = {}
+    for param in params:
+        name, _, value = param.partition("=")
+        parsed[name.strip().lower()] = value.strip().strip('"')
+    return base.strip().lower(), parsed
+
+
+def _supported(params):
+    return set(params) <= ALLOWED_PARAMS and "ext" not in params
 
 
 def check_request(request):
-    """Enforce JSON:API content negotiation (spec sections on Content-Type/Accept).
+    """Enforce JSON:API 1.1 content negotiation, leniently where it's harmless.
 
-    - A request body ``Content-Type`` of the JSON:API media type MUST carry no
-      media-type parameters (else 415).
-    - If ``Accept`` mentions the JSON:API media type and *every* instance is
-      parameterised, the server MUST respond 406.
+    - A request with a body must declare the JSON:API media type or
+      ``application/json`` (else 415), so an untyped or form-encoded cross-site
+      body can't slip through to the JSON parser.
+    - ``charset=utf-8`` is ignored (some HTTP libraries always add it). Beyond
+      that, only the JSON:API type's ``profile`` parameter is accepted; ``ext``
+      names an extension djulia doesn't support (else 415).
+    - If ``Accept`` lists the JSON:API media type but no instance of it is
+      usable (other parameters, or an unsupported ``ext``), respond 406.
     """
-    if not get_setting("STRICT_CONTENT_TYPE"):
-        return
-
-    content_type = request.META.get("CONTENT_TYPE", "")
-    if request.method in ("POST", "PATCH") and content_type:
-        if _base(content_type) == MEDIA_TYPE and ";" in content_type:
-            raise UnsupportedMediaType("The JSON:API media type must not carry parameters.")
-        if _base(content_type) != MEDIA_TYPE:
-            raise UnsupportedMediaType(f"Expected Content-Type '{MEDIA_TYPE}'.")
+    if request.body:
+        base, params = _parse(request.META.get("CONTENT_TYPE", ""))
+        if base not in BODY_TYPES:
+            raise UnsupportedMediaType(
+                f"Request bodies must be sent with 'Content-Type: {MEDIA_TYPE}' "
+                "(or 'application/json').")
+        if params.pop("charset", "utf-8").lower() != "utf-8":
+            raise UnsupportedMediaType("Request bodies must be UTF-8.")
+        if params and (base != MEDIA_TYPE or not _supported(params)):
+            raise UnsupportedMediaType(
+                f"Unsupported Content-Type parameters {sorted(params)}: only "
+                f"`profile` on '{MEDIA_TYPE}' is accepted, and no extensions are supported.")
 
     accept = request.META.get("HTTP_ACCEPT", "")
-    if accept:
-        matches = [a.strip() for a in accept.split(",") if _base(a) == MEDIA_TYPE]
-        if matches and all(";" in a for a in matches):
-            raise NotAcceptable("The JSON:API media type must not carry parameters.")
+    instances = [params for base, params in map(_parse, accept.split(",")) if base == MEDIA_TYPE]
+    if instances and not any(_supported(params) for params in instances):
+        raise NotAcceptable(
+            "No acceptable instance of the JSON:API media type in Accept; "
+            "only a `profile` parameter is supported.")
