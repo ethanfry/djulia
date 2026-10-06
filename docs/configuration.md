@@ -286,4 +286,4 @@ Any key you omit falls back to the default shown above.
   primary key if that matters.
 - No `?include=` compound documents or dedicated relationship endpoints.
 
-The database-introspection roadmap lives in [docs/standalone.md](standalone.md).
+Everything planned, including these, is tracked in the [roadmap](roadmap.md).
