@@ -1,0 +1,26 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install tox
+      # Every tox env for this Python (one per supported Django). Unlike a local
+      # run, a missing interpreter here is a failure, not a skip.
+      - run: tox -f "py${PYTHON//./}" --skip-missing-interpreters false
+        env:
+          PYTHON: ${{ matrix.python }}

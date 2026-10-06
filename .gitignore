@@ -13,3 +13,6 @@ dist/
 # SQLite
 *.sqlite3
 *.db
+
+# Tox
+.tox/
