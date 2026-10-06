@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 
 
@@ -22,3 +24,18 @@ class Article(models.Model):
 class Widget(models.Model):
     name = models.CharField(max_length=100)
     visible = models.BooleanField(default=True)
+
+
+class Currency(models.Model):
+    """A natural primary key: clients must supply the id."""
+    code = models.CharField(max_length=3, primary_key=True)
+    name = models.CharField(max_length=50)
+
+    class Meta:
+        verbose_name_plural = "currencies"
+
+
+class Token(models.Model):
+    """A primary key with a default: clients may supply the id."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    label = models.CharField(max_length=50)

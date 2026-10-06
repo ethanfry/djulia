@@ -1,4 +1,6 @@
 from django.core.exceptions import ImproperlyConfigured
+from django.db.models import NOT_PROVIDED
+from django.db.models.fields import AutoFieldMixin
 from django.utils.text import slugify
 
 from .conf import get_setting
@@ -8,12 +10,28 @@ from .permissions import get_identity, get_policy
 class RelationSpec:
     """Precomputed description of one relationship on a resource's model."""
 
-    def __init__(self, name, to_many, related_model, accessor, forward):
+    def __init__(self, name, to_many, related_model, accessor, forward, writable):
         self.name = name
         self.to_many = to_many
         self.related_model = related_model
         self.accessor = accessor
         self.forward = forward
+        self.writable = writable
+
+
+def _client_id_policy(pk):
+    """How a create request may supply ``id``: "forbidden", "optional" or "required".
+
+    Auto-increment keys are always server-assigned; a key with a default (e.g. a
+    UUID) may come from the client; a key with neither (a natural key) must.
+    """
+    while pk.remote_field is not None and pk.remote_field.parent_link:
+        pk = pk.remote_field.model._meta.pk  # multi-table inheritance: the parent's key
+    if isinstance(pk, AutoFieldMixin):
+        return "forbidden"
+    if pk.has_default() or getattr(pk, "db_default", NOT_PROVIDED) is not NOT_PROVIDED:
+        return "optional"
+    return "required"
 
 
 class Resource:
@@ -51,18 +69,26 @@ class Resource:
                     accessor = f.get_accessor_name()
                     if accessor is None:
                         continue
+                    # Only a reverse M2M can be set from this side; a reverse FK or
+                    # O2O would mean reassigning (or orphaning) the other rows.
                     relations[accessor] = RelationSpec(
-                        accessor, not f.one_to_one, f.related_model, accessor, forward=False)
+                        accessor, not f.one_to_one, f.related_model, accessor,
+                        forward=False, writable=f.many_to_many)
                 else:               # forward FK / O2O / M2M declared on this model
                     relations[f.name] = RelationSpec(
-                        f.name, f.many_to_many, f.related_model, f.name, forward=True)
+                        f.name, f.many_to_many, f.related_model, f.name,
+                        forward=True, writable=f.editable)
             elif getattr(f, "concrete", False) and f.name != pk_name:
                 concrete.append(f.name)
 
         self.pk_name = pk_name
+        self.client_id = _client_id_policy(meta.pk)
         self.concrete_fields = concrete
         self.relations = relations
         self.attribute_names = list(self.fields) if self.fields is not None else concrete
+        # Non-editable fields (auto_now, auto_now_add, editable=False) are output-only.
+        self.writable_attributes = {
+            n for n in self.attribute_names if meta.get_field(n).editable}
         self.relationship_names = (
             list(self.relationships) if self.relationships is not None else list(relations))
         self.sortable_fields = (

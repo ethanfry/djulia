@@ -1,9 +1,11 @@
 from djulia import Resource, api
 
-from .models import Article, Author, Tag, Widget
+from .models import Article, Author, Currency, Tag, Token, Widget
 
 api.register(Author)
 api.register(Tag)
+api.register(Currency)
+api.register(Token)
 
 
 @api.register(Article)

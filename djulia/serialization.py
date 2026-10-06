@@ -27,13 +27,13 @@ def resource_object(instance, resource, sparse=None):
         spec = resource.relations.get(name)
         if spec is None:
             continue
-        relationships[name] = {"data": _linkage(instance, spec, resource.registry)}
+        relationships[name] = {"data": linkage(instance, spec, resource.registry)}
     if relationships:
         obj["relationships"] = relationships
     return obj
 
 
-def _linkage(instance, spec, registry):
+def linkage(instance, spec, registry):
     if spec.to_many:
         manager = getattr(instance, spec.accessor)
         return [_ident(o, spec.related_model, registry) for o in manager.all()]

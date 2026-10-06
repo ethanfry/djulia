@@ -44,6 +44,8 @@ def _resource_schema(resource):
     attributes = {}
     for name in resource.attribute_names:
         attributes[name] = _attribute_schema(resource.model._meta.get_field(name))
+        if name not in resource.writable_attributes:
+            attributes[name]["readOnly"] = True
 
     relationships = {}
     for name in resource.relationship_names:
@@ -52,12 +54,15 @@ def _resource_schema(resource):
             continue
         data = {"type": "array", "items": _LINKAGE} if spec.to_many else dict(_LINKAGE, nullable=True)
         relationships[name] = {"type": "object", "properties": {"data": data}}
+        if not spec.writable:
+            relationships[name]["readOnly"] = True
 
     return {
         "type": "object",
         "properties": {
             "type": {"type": "string", "example": resource.type_name},
-            "id": {"type": "string"},
+            "id": {"type": "string", "readOnly": True} if resource.client_id == "forbidden"
+                  else {"type": "string"},
             "attributes": {"type": "object", "properties": attributes},
             "relationships": {"type": "object", "properties": relationships},
         },

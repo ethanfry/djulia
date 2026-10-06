@@ -134,6 +134,37 @@ class ArticleResource(Resource):
 
 Applies to both list and detail — a hidden object returns `404`.
 
+## Writing
+
+Create with `POST /api/<type>/`, update with `PATCH /api/<type>/<id>/`. An update
+changes only the attributes and relationships you send. Each write is saved in
+one transaction, and every related id is checked first, so a bad request
+changes nothing.
+
+### Read-only fields
+
+Fields Django treats as non-editable (`auto_now`, `auto_now_add`,
+`editable=False`) appear in responses but can't be written, and the OpenAPI
+schema marks them `readOnly`. The same goes for reverse one-to-many and
+one-to-one relationships (e.g. an author's `articles`); a reverse many-to-many
+is writable.
+
+Clients may send back the whole object they received: a read-only value sent
+unchanged on update is ignored. Trying to change one, or sending one on create,
+returns `403`.
+
+### Ids on create
+
+What a create request may do with `id` depends on the model's primary key:
+
+| Primary key | `id` in a create request |
+|---|---|
+| auto-increment (Django's default) | not allowed (`403`) |
+| has a default, e.g. `UUIDField(default=uuid.uuid4)` | optional; generated if absent |
+| neither, e.g. `CharField(primary_key=True)` | required (`422` if missing) |
+
+A client-supplied `id` that already exists returns `409`.
+
 ## Permissions
 
 djulia doesn't authenticate anyone. It works in two steps, and you plug your
@@ -250,6 +281,9 @@ Any key you omit falls back to the default shown above.
 
 - No `exclude`/`hidden` shorthand — list `fields` explicitly.
 - No `register(Model, **overrides)` kwarg form — subclass or use the decorator.
+- No `id_field` option: the public `id` is always the primary key. Sequential
+  integer keys reveal record counts and are easy to enumerate; use a UUID
+  primary key if that matters.
 - No `?include=` compound documents or dedicated relationship endpoints.
 
 The database-introspection roadmap lives in [docs/standalone.md](standalone.md).

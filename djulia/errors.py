@@ -67,6 +67,10 @@ class MethodNotAllowed(JSONAPIError):
     status, title = 405, "Method Not Allowed"
 
 
+class Conflict(JSONAPIError):
+    status, title = 409, "Conflict"
+
+
 class NotAcceptable(JSONAPIError):
     status, title = 406, "Not Acceptable"
 

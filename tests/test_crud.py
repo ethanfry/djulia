@@ -36,11 +36,11 @@ class CrudTests(JSONAPITestCase):
         self.assertEqual(art.title, "Newer")
         self.assertEqual(art.body, "keep")
 
-    def test_patch_id_mismatch_is_400(self):
+    def test_patch_id_mismatch_is_409(self):
         art = Article.objects.create(title="X", author=self.ada)
         doc = {"data": {"type": "articles", "id": "999", "attributes": {"title": "Y"}}}
         resp = self.api_patch(f"/api/articles/{art.pk}/", doc)
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 409)
 
     def test_delete(self):
         art = Article.objects.create(title="Bye", author=self.ada)
