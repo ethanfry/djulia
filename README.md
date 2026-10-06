@@ -110,10 +110,12 @@ For every registered model:
 - A browsable HTML API (for browsers) and JSON (for API clients)
 - OpenAPI schema at `/api/openapi.json` and Swagger UI at `/api/docs/`
 
-> **Reads are public by default, and every field is exposed.** Registering a
-> model (or a whole app with `register_app`) publishes all of its rows and
-> columns to anonymous callers. Before pointing djulia at real data, list the
-> fields you mean to share with [`fields`](docs/configuration.md#choose-which-attributes-are-exposed--fields),
+> **Reads are public by default, and nearly every column is exposed.**
+> Registering a model (or a whole app with `register_app`) publishes its rows
+> to anonymous callers. djulia hides binary columns and ones whose names look
+> like credentials (`password_hash`, `api_key`, ...), but that's a guess.
+> Before pointing djulia at real data, choose the columns you mean to share
+> with [`fields` or `exclude`](docs/configuration.md#choose-which-attributes-are-exposed--fields),
 > scope rows with [`get_queryset`](docs/configuration.md#scope-rows-per-request--get_queryset),
 > or restrict reads with a [custom policy](docs/configuration.md#your-own-policy).
 >
@@ -134,7 +136,7 @@ from .models import Customer
 
 @api.register(Customer)
 class CustomerResource(Resource):
-    fields = ["name", "created_at"]          # hide email
+    exclude = ["email"]
     ordering_fields = ["created_at"]
     permission = "authenticated"              # any identified caller may write
 
@@ -144,7 +146,7 @@ api.register_app("shop")                      # the rest keep the defaults
 Already have Django models? Skip the database steps and register them
 directly with `api.register(MyModel)` or `api.register_app("myapp")`.
 
-Per-resource options: `type_name`, `fields`, `relationships`,
+Per-resource options: `type_name`, `fields`, `exclude`, `relationships`,
 `filterset_fields`, `filterset_class`, `ordering_fields`, `get_queryset`,
 `permission`, `has_permission`. Project-wide settings live in a `DJULIA` dict
 (`PAGE_SIZE`, `MAX_PAGE_SIZE`, `BROWSABLE`, `IDENTITY`, `PERMISSION`,

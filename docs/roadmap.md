@@ -26,24 +26,53 @@ link from here.
   and changing links on their own.
 - [ ] **Richer OpenAPI.** Error responses (400/401/403/409/415/422), security
   schemes for token auth, and required fields on create.
-- [ ] **`read_only_fields` / `exclude` on `Resource`.** Mark a field read-only
-  or hidden without changing the model.
+- [ ] **`read_only_fields` on `Resource`.** Mark a field read-only without
+  changing the model.
+- [ ] **Reject unknown filters.** `?filter[...]` on a column that doesn't exist
+  or is hidden is silently ignored, so a typo returns unfiltered results.
+  Return `400` instead, as `?sort=` already does.
 - [ ] **Policies can say "never".** Anonymous callers get `401` even when no one
   may perform the action; let a policy raise its own error so that's a `403`.
 - [ ] **Startup checks.** Warn when `allow_all` is active, or when a model from
   `django.contrib.auth` is registered.
 - [ ] **Full-text search.** e.g. `?filter[search]=...`.
+- [ ] **JSON columns (`JSONField`, e.g. PostgreSQL `jsonb`).** Values serialize
+  as nested JSON, but nothing tests that end to end yet. Known issues:
+  - The OpenAPI schema calls them strings: `_attribute_schema` has no
+    `JSONField` case and falls back to `{"type": "string"}`. They should be
+    "any JSON value".
+  - They're sortable by default like every column, though the order is rarely
+    meaningful (and not all databases can order them). Probably exclude them
+    from default sorting.
+  - Default filters skip them, which seems right; decide whether any lookups
+    (e.g. key containment) are worth offering.
+  - Add a `JSONField` model to the test app.
 
 ## Later
 
 - [ ] **Standalone mode.** Serve an existing database with no Django project;
   see [standalone.md](standalone.md).
 - [ ] **`id_field` option.** Use a unique field other than the primary key as
-  the public `id`, so sequential keys aren't exposed.
+  the public `id`, so sequential keys aren't exposed. Mainly for existing
+  databases, where the primary key can't change; projects with their own
+  models can use a UUID primary key instead. Where the conversions happen:
+  - `serialization._ident`: read `obj.<id_field>` instead of `obj.pk`
+    (related objects are already loaded, so no extra queries).
+  - `views.existing_pks`: look up by the field
+    (`in_bulk(ids, field_name=id_field)`) and return primary keys.
+  - Single related records: look up the primary key first instead of setting
+    `<name>_id` directly (one query, same as lists).
+  - `get_object` and `apply_client_id`: look up by the field instead of `pk`.
+  - Filtering by relationship (`?filter[author]=...`) currently uses primary
+    keys via django-filter; make it accept public ids. The fiddliest part.
+  - Also: the OpenAPI schema, and a startup check that the field is unique and
+    non-null.
 - [ ] **`model_perms` policy.** Writes need Django's `add_`/`change_`/`delete_`
   permissions, for Django-native projects.
 - [ ] **CSRF for session cookies.** Enforce CSRF only for cookie-authenticated
   requests, for projects serving their own browser frontend.
+- [ ] **Binary columns, opt-in.** Hidden by default today, and exposing one is an
+  error (`djulia.E001`). Could serve them base64-encoded.
 - [ ] **Configurable `WWW-Authenticate`.** It's always `Bearer` today.
 - [ ] **`register(Model, **overrides)`.** One-line overrides without a subclass.
 - [ ] **Client-id conflicts and hidden rows.** The "id already exists" check
@@ -58,6 +87,7 @@ link from here.
 
 ## Done
 
+- [x] Hide binary and credential-like columns by default; `exclude`; filters and sorting cover visible columns only (2026-10-05)
 - [x] Checked the CI run for the v7 action bump: all Pythons pass, 3.10 included (2026-10-05)
 - [x] Pinned the CI runner to `ubuntu-24.04` and moved actions to v7 (2026-10-05)
 - [x] tox matrix and GitHub Actions CI (2026-10-05)

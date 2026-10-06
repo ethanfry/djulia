@@ -77,6 +77,7 @@ a JSON:API error document (`errors.py`).
 | `browsable.py` | Renders a response document as an HTML page for browsers. |
 | `errors.py` | `JSONAPIError` and its subclasses, one per status code. |
 | `conf.py` | The `DJULIA` settings dict and its defaults. |
+| `checks.py` | System checks: reports columns hidden by default, rejects exposed binary columns. |
 
 ## Design decisions
 
@@ -114,7 +115,10 @@ handling isn't built yet.
 
 **Safe defaults, explicit opt-in.** Reads are public and writes are off
 (`read_only`). Built-in policies gate writes only; a custom policy can gate
-reads too.
+reads too. Binary columns and columns whose names look like credentials are
+hidden unless listed in `fields`; a system check reports what was hidden.
+Default filters and sorting only cover visible columns, since either would
+otherwise leak hidden values.
 
 **Writes are all-or-nothing.** The document's shape, types and every related
 id are checked before anything is saved; then the row and its to-many links

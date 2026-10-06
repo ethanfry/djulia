@@ -22,10 +22,15 @@ _ORDERED = (models.IntegerField, models.FloatField, models.DecimalField,
 
 
 def _default_filter_fields(resource):
-    """Auto-build django-filter's ``Meta.fields`` dict from the model's fields."""
+    """Auto-build django-filter's ``Meta.fields`` dict from the model's fields.
+
+    Only the primary key and visible attributes and relationships qualify:
+    filtering on a hidden column would let callers guess its values.
+    """
+    visible = {resource.pk_name, *resource.attribute_names, *resource.relationship_names}
     fields = {}
     for f in resource.model._meta.get_fields():
-        if not getattr(f, "concrete", False):
+        if not getattr(f, "concrete", False) or f.name not in visible:
             continue
         if f.primary_key or f.is_relation:
             fields[f.name] = ["exact"]

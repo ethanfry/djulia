@@ -45,10 +45,33 @@ untouched, so you can bulk-register and still override the few that need it.
 ```python
 @api.register(Author)
 class AuthorResource(Resource):
-    fields = ["name"]        # only these attributes; omit `fields` to expose all
+    fields = ["name"]        # only these attributes
 ```
 
-There's no `exclude`/`hidden` shorthand yet — list the columns you want to keep.
+Or leave out a few and keep the rest (works for relationships too):
+
+```python
+class AuthorResource(Resource):
+    exclude = ["email", "articles"]
+```
+
+Without `fields`, djulia hides two kinds of column by default:
+
+- **Binary columns** (`BinaryField`, e.g. PostgreSQL `bytea`), which can't be
+  serialized to JSON.
+- **Columns whose names look like credentials**: names containing the word
+  `password`, `passwd`, `pwd`, `secret`, `token`, `salt`, `otp` or `apikey`, or
+  `api_key`, `private_key`, `access_key`, `session_key`. Whole words only, in
+  snake_case or camelCase: `refresh_token` and `passwordHash` are hidden,
+  `tokenizer` isn't.
+
+`runserver` and `manage.py check` list what was hidden (check `djulia.I001`;
+silence it with `SILENCED_SYSTEM_CHECKS`). To expose a hidden column, list it
+in `fields`.
+
+Hidden columns, whether hidden by default, by `fields` or by `exclude`, can't
+be read, written, filtered on or sorted by, and don't appear in the OpenAPI
+schema.
 
 ### Choose which relationships appear — `relationships`
 
@@ -279,7 +302,6 @@ Any key you omit falls back to the default shown above.
 
 ## Not yet supported
 
-- No `exclude`/`hidden` shorthand — list `fields` explicitly.
 - No `register(Model, **overrides)` kwarg form — subclass or use the decorator.
 - No `id_field` option: the public `id` is always the primary key. Sequential
   integer keys reveal record counts and are easy to enumerate; use a UUID

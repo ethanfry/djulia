@@ -11,7 +11,7 @@ class RegisterAppTests(TestCase):
         reg.register_app("testapp")
         self.assertEqual(
             {r.type_name for r in reg.all_resources()},
-            {"authors", "tags", "articles", "widgets", "currencies", "tokens"},
+            {"authors", "tags", "articles", "widgets", "currencies", "tokens", "accounts"},
         )
 
     def test_does_not_clobber_explicit_registration(self):

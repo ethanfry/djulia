@@ -1,5 +1,7 @@
+import re
+
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import NOT_PROVIDED
+from django.db.models import NOT_PROVIDED, BinaryField
 from django.db.models.fields import AutoFieldMixin
 from django.utils.text import slugify
 
@@ -17,6 +19,32 @@ class RelationSpec:
         self.accessor = accessor
         self.forward = forward
         self.writable = writable
+
+
+# Column names that look like credentials, matched as whole words of the name
+# (so `token` and `api_key` match, `tokenizer` and `secretary` don't).
+SENSITIVE_WORDS = {"password", "passwd", "pwd", "secret", "token", "salt", "otp", "apikey"}
+SENSITIVE_PAIRS = {("api", "key"), ("private", "key"), ("access", "key"), ("session", "key")}
+
+
+def _words(name):
+    """``passwordHash`` / ``password_hash`` -> ``["password", "hash"]``."""
+    name = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
+    return [w for w in re.split(r"[^a-z0-9]+", name.lower()) if w]
+
+
+def looks_sensitive(name):
+    words = _words(name)
+    return bool(SENSITIVE_WORDS & set(words)) or bool(SENSITIVE_PAIRS & set(zip(words, words[1:])))
+
+
+def auto_hide_reason(field):
+    """Why a column is left out of a resource's default attributes, if it is."""
+    if isinstance(field, BinaryField):
+        return "binary"   # raw bytes don't serialize to JSON
+    if looks_sensitive(field.name) or looks_sensitive(field.column or ""):
+        return "looks sensitive"
+    return None
 
 
 def _client_id_policy(pk):
@@ -43,7 +71,8 @@ class Resource:
 
     model = None
     type_name = None          # None -> slug of the model's plural verbose name
-    fields = None             # attribute names; None -> all concrete fields
+    fields = None             # attribute names; None -> concrete fields, minus auto-hidden ones
+    exclude = None            # attribute/relationship names to leave out
     relationships = None      # relationship names; None -> all relations
     filterset_fields = None   # None -> auto (all fields); list/dict -> explicit
     filterset_class = None    # a full django-filter FilterSet, when the default won't do
@@ -85,15 +114,36 @@ class Resource:
         self.client_id = _client_id_policy(meta.pk)
         self.concrete_fields = concrete
         self.relations = relations
-        self.attribute_names = list(self.fields) if self.fields is not None else concrete
+        exclude = set(self.exclude or ())
+        unknown = exclude - set(concrete) - set(relations)
+        if unknown:
+            raise ImproperlyConfigured(
+                f"{type(self).__name__}.exclude names unknown fields: {sorted(unknown)}")
+        # With no explicit `fields`, binary and credential-like columns are hidden;
+        # listing a column in `fields` always exposes it.
+        self.auto_hidden = {}
+        if self.fields is not None:
+            names = list(self.fields)
+        else:
+            names = []
+            for name in concrete:
+                reason = auto_hide_reason(meta.get_field(name))
+                if reason and name not in exclude:
+                    self.auto_hidden[name] = reason
+                elif not reason:
+                    names.append(name)
+        self.attribute_names = [n for n in names if n not in exclude]
         # Non-editable fields (auto_now, auto_now_add, editable=False) are output-only.
         self.writable_attributes = {
             n for n in self.attribute_names if meta.get_field(n).editable}
-        self.relationship_names = (
-            list(self.relationships) if self.relationships is not None else list(relations))
+        self.relationship_names = [
+            n for n in (self.relationships if self.relationships is not None else relations)
+            if n not in exclude]
+        # Only visible columns are sortable by default: sorting by a hidden one
+        # would leak its order.
         self.sortable_fields = (
             set(self.ordering_fields) if self.ordering_fields is not None
-            else set(concrete) | {pk_name})
+            else set(self.attribute_names) | {pk_name})
         if self.type_name is None:
             self.type_name = slugify(str(meta.verbose_name_plural))
 

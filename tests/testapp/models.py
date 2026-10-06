@@ -39,3 +39,14 @@ class Token(models.Model):
     """A primary key with a default: clients may supply the id."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     label = models.CharField(max_length=50)
+
+
+class Account(models.Model):
+    """Columns djulia should hide by default, and lookalikes it shouldn't."""
+    username = models.CharField(max_length=50)
+    password_hash = models.CharField(max_length=128, blank=True)
+    sessionKey = models.CharField(max_length=40, blank=True)
+    avatar = models.BinaryField(null=True, blank=True)
+    tokenizer = models.CharField(max_length=20, blank=True)
+    owner = models.ForeignKey(Author, null=True, blank=True, related_name="accounts",
+                              on_delete=models.SET_NULL)
